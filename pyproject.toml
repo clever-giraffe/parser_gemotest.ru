@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "gemotest-parser"
+version = "0.1.0"
+description = ""
+authors = ["distruct <qqeyu925@gmail.com>"]
+readme = "README.md"
+packages = [{include = "gemotest_parser"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+requests-html = "^0.10.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
