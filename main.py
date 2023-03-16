@@ -1,19 +1,39 @@
+import asyncio
+import json
+import os.path
+from typing import Iterable
+
 from requests_html import AsyncHTMLSession
 from bs4 import BeautifulSoup
 
 session = AsyncHTMLSession()
 
 
-async def main():
+def _get_categories_links(html: str) -> Iterable[str]:
+    ...
 
-    with open('index.html', 'r') as f:
+
+def write_to_json_file(dictionary, filename):
+    with open(filename, 'w', encoding='utf-8') as f:
+        json.dump(dictionary, f, indent=4, ensure_ascii=False)
+
+
+async def main():
+    """
+    1. Get cities list
+    2. Get categories list for current city
+    3. Get info about analyse
+    4. Save information for every city
+    5. Include price from all cities in table
+    :return:
+    """
+    with open('data/index.html', 'r') as f:
         page = f.read()
     resp = BeautifulSoup(page, "html.parser")
-    cities = [f"{i.get('data-code')},{i.text.strip()}" for i in resp.find_all("a", class_="js-city-search-city")]
-    # with open('city.txt', 'w') as f:
-    #     f.write("\n".join(city))
+    cities = [i.get('data-code') for i in resp.find_all("a", class_="js-city-search-city")]
 
-    for city in cities:
+    for index, city in enumerate(cities, start=0):
+        print(f"Started {index+1}/{len(cities)}: {city}")
         cookies = {
             '__ddg1_': 'WkDXcAUpttGGSn4OzfDh',
             'PHPSESSID': '0WSV2jDja4aYRzAeEocZb0KiLjjrXm6R',
@@ -40,11 +60,26 @@ async def main():
         }
         url = f'https://gemotest.ru/{city}/catalog/'
         resp = await session.get(url, headers=headers, cookies=cookies)
-        category_links = resp.html.find('a.sidebar-menu__link')
-        for link in links:
-            print(link, link.absolute_links)
-    # with open('links.txt', 'w') as f:
-    #     f.write(links)
+        category_links = resp.html.find('div#services-list')[0].find('a')
+        results = []
+        for cat_id, category_link in enumerate(category_links):
+            category_link = tuple(category_link.absolute_links)[0]
+            analysis_page = await session.get(category_link, headers=headers, cookies=cookies)
+            analysis_items = analysis_page.html.find(".analize_list")[0].find(".analize-item")
+            print(f"Categories {cat_id}/{len(category_links)} Items: {len(analysis_items)} + {len(results)}\nLink: {category_link}")
+            for item in analysis_items:
+                code = item.find(".analize-item__info")[0].find("span")[0].text.strip()
+                title = item.find(".analize-item__title")[0].find("a")[0].text.strip()
+                try:
+                    price = ''.join(item.find(".price")[0].text[:-1].split())
+                except:
+                    price = ''.join(item.find(".add-to-cart__price")[0].text[:-1].split())
+                # print(code, title, price)
+                results.append({'code': code, 'title': title, 'price': price})
+            await asyncio.sleep(2)
+        await asyncio.sleep(5)
+        print(f'{city} : {len(results)}')
+        write_to_json_file(results, f'data/{city}.json')
 
 if __name__ == '__main__':
     session.run(main)
