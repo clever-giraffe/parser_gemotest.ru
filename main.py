@@ -49,7 +49,7 @@ def _cities_list() -> Iterable[tuple[str, str]]:
     return [(i.get('data-code'), i.text.strip()) for i in resp.find_all("a", class_="js-city-search-city")]
 
 
-def _get_categories_by_city(city) -> Iterable[str]:
+async def _get_categories_by_city(city) -> Iterable[str]:
     # print(f"City {index + 1}/{len(cities)} {city}")
     cookies['BITRIX_SM_CITY_CODE'] = city
     url = f'https://gemotest.ru/{city}/catalog/'
@@ -57,7 +57,7 @@ def _get_categories_by_city(city) -> Iterable[str]:
     return [tuple(i.absolute_links)[0] for i in resp.html.find('div#services-list')[0].find('a')]
 
 
-def _get_items_from_category(category_url) -> Iterable:
+async def _get_items_from_category(category_url) -> Iterable:
     """
     Using requests_html AsyncHTMLSession
     :param category_url: Link to single category
@@ -78,15 +78,18 @@ def _get_items_from_category(category_url) -> Iterable:
     return results
 
 
-def _get_items_from_categories(categories_url: Iterable) -> Iterable:
+async def _get_items_from_categories(categories_url: Iterable) -> Iterable:
     """
     :param categories_url: List absolute links to the categories
     :return: list of dict with {'code': code, 'title': title, 'price': price}
     """
     # TODO Using multiprocessing for collections items from categories
     all_items_in_categories_by_city = []
-    for category in categories_url:
-        all_items_in_categories_by_city.append(_get_items_from_category(category))
+    for cat_id, category in enumerate(categories_url, start=1):
+        items = await _get_items_from_category(category)
+        all_items_in_categories_by_city.extend(items)
+        print(f"[{datetime.datetime.now().strftime('%H:%M %d/%m/%Y')}] Categories {cat_id}/{len(categories_url)} "
+              f"Items: {len(items)} + {len(all_items_in_categories_by_city)}\nLink: {category}")
     return all_items_in_categories_by_city
 
 
@@ -104,10 +107,11 @@ async def main():
     5. Include price from all cities in table [coming soon]
     """
     cities = [i[0] for i in _cities_list()]
-    offset = 161
-    for index, city in enumerate(cities[offset:], start=offset):
-        categories_links_by_city = _get_categories_by_city(city)
-        items_in_all_category_by_city = _get_items_from_categories(categories_links_by_city)
+    offset = 214
+    for index, city in enumerate(cities[offset:], start=offset + 1):
+        print(f"{'='*80}\nCity {index}/{len(cities)} [{city.upper()}]")
+        categories_links_by_city = await _get_categories_by_city(city)
+        items_in_all_category_by_city = await _get_items_from_categories(categories_links_by_city)
         write_to_json_file(items_in_all_category_by_city, f'data/{city}.json')
         print(f'Collected from {city} : {len(items_in_all_category_by_city)}')
 
