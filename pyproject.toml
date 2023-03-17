@@ -9,6 +9,8 @@ packages = [{include = "gemotest_parser"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 requests-html = "^0.10.0"
+pandas = "^1.5.3"
+openpyxl = "^3.1.2"
 
 
 [build-system]
