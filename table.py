@@ -1,72 +1,43 @@
+import openpyxl
 import pandas as pd
 import json
-from openpyxl import load_workbook
-from openpyxl import Workbook
+from main import _cities_list
 
 
 def save_to_table():
-    ...
+    """
+    1. Read file
+    2. Add columns with city names
+    3. Read line
+    4. Search price in cities by code
 
+    :return:
+    """
+    wb = openpyxl.load_workbook('file.xlsx')
+    sheet = wb['TDSheet']
 
-def save_to_file_openpyxl():
-    # Загрузить xlsx файл
-    workbook = load_workbook(filename='file.xlsx')
+    cities = _cities_list()[:50]
+    for i, city in enumerate(cities):
+        sheet.cell(row=1, column=i + 5).value = city[1]
+    for col in range(1, sheet.max_column+1):
+        sheet.column_dimensions[openpyxl.utils.get_column_letter(col)].auto_size = True
+        sheet.cell(row=1, column=col)._style = sheet.cell(row=1, column=4)._style
+    # add filters
+    sheet.auto_filter.ref = sheet.dimensions
 
-    # Выбрать активный лист
-    sheet = workbook.active
-
-    # Обойти каждую строку и получить значения ячеек
-    for row in sheet.iter_rows(values_only=True):
-        article = row[0]
-        name = row[1]
-        # Добавить код для обработки данных
-
-    # Создать новый xlsx файл
-    workbook = Workbook()
-
-    # Выбрать активный лист
-    sheet = workbook.active
-
-    # Записать значения в ячейки
-    for row in data:
-        sheet.append(row)
-
-    # Сохранить xlsx файл
-    workbook.save('file.xlsx')
-
-
-def save_to_file_pandas():
-    # Загрузить xlsx файл
-    df = pd.read_excel('file.xlsx')
-
-    # Создать столбцы для каждого города
-    cities = ['city1', 'city2', 'city3']  # Список названий городов
-    for city in cities:
-        df[city] = ''
-
-    # Перебрать каждую строку из таблицы
-    for index, row in df.iterrows():
-        # Получить артикул и название из строки
-        article = row['article']
-        name = row['name']
-
-        # Обойти каждый город и найти цену для данного артикула
-        for city in cities:
-            # Загрузить соответствующий JSON файл
-            with open(city + '.json', 'r') as f:
+    for row in range(2, sheet.max_row + 1):
+        articul = sheet.cell(row=row, column=1).value
+        if articul is None:
+            continue
+        for i, city in enumerate(cities):
+            with open(f'data/{city[0]}.json') as f:
                 data = json.load(f)
+                for item in data:
+                    if item['code'] == articul:
+                        sheet.cell(row=row, column=i + 5).value = item['price']
+                        break
 
-            # Найти цену для данного артикула
-            for item in data:
-                if item['артикул'] == article:
-                    price = item['цена']
-                    break
-
-            # Добавить цену в столбец соответствующего города
-            df.at[index, city] = price
-
-    # Сохранить результат в тот же xlsx файл
-    df.to_excel('file.xlsx', index=False)
+    wb.save('out_50_cities.xlsx')
 
 
 if __name__ == '__main__':
